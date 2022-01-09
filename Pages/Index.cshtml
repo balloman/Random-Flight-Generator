@@ -1,0 +1,36 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to the Random Flight Generator</h1>
+    
+    
+</div>
+<body>
+<div class="container">
+    
+    <form class="p-3" method="post">
+        <div class="form-group p-2">
+            <input type="text" class="form-control" asp-for="Key" placeholder="Enter your key here: "/>
+        </div>
+        <div class="form-group p-2">
+            <label for="departure">Enter the departure airport here:</label>
+            <input type="text" class="form-control" id="departure" placeholder="Enter departure airport." asp-for="Airport"/>
+        </div>
+        <div class="form-group p-2">
+            <label for="timespan-select">How far back to look?</label>
+            <select class="form-control" id="timespan-select" asp-items="Model.TimeSpansList" asp-for="SelectedTimeSpanItem"></select>
+        </div>
+        <button type="submit" class="btn btn-primary" asp-page-handler="GetAircraft">Get Available Aircraft</button>
+        <hr/>
+        <div class="form-group p-2">
+            <select class="form-control" asp-items="Model.AircraftList" asp-for="SelectedAircraftItem"></select>
+        </div>
+        <button type="submit" class="btn btn-primary" asp-page-handler="GetRandomFlight">Get Random Flight!</button>
+    </form>
+    <textarea asp-for="OutputText"></textarea>
+</div>
+</body>
