@@ -21,6 +21,7 @@ jobs:
         TAG: $(date +%s)
       run: |
         docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+        echo $TAG
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag balloman/random-flight-generator:$TAG
     - name: Push the Docker image
