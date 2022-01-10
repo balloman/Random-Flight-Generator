@@ -18,9 +18,10 @@ jobs:
       env:
         DOCKER_USER: ${{secrets.DOCKER_USER}}
         DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+        TAG: $(date +%s)
       run: |
         docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag balloman/random-flight-generator:$(date +%s)
+      run: docker build . --file Dockerfile --tag balloman/random-flight-generator:TAG
     - name: Push the Docker image
-      run: docker push balloman/random-flight-generator
+      run: docker push balloman/random-flight-generator:TAG
