@@ -78,7 +78,7 @@ public class IndexModel : PageModel
         }
 
         flightsArray = flightsArray.Where(departure => !string.IsNullOrWhiteSpace(departure.Aircraft?.Model) && !string.IsNullOrWhiteSpace(SelectedAircraftItem) && SelectedAircraftItem.Contains(departure.Aircraft?.Model)).ToArray();
-        if (flightsArray == null || flightsArray.Length == 0)
+        if (flightsArray.Length == 0)
         {
             OutputText = "No flights found";
             return Page();
