@@ -20,10 +20,10 @@ jobs:
         DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
       run: docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - name: Set Time
-      run: echo "TIME::$(date +'%s')" >> $GITHUB_ENV
+      run: echo "TIME=$(date +'%s')" >> $GITHUB_ENV
     - name: Echo variable
-      run: echo $TIME
+      run: echo ${{ env.TIME }}
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag balloman/random-flight-generator:$TIME
+      run: docker build . --file Dockerfile --tag balloman/random-flight-generator:${{ env.TIME }}
     - name: Push the Docker image
-      run: docker push balloman/random-flight-generator:$TIME
+      run: docker push balloman/random-flight-generator:${{ env.TIME }}
