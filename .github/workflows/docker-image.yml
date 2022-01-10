@@ -23,4 +23,4 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag balloman/random-flight-generator:$(date +%s)
     - name: Push the Docker image
-      run: docker push balloman/random-flight-generator
+      run: docker push balloman/random-flight-generator:$(date +%s)
