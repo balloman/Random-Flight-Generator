@@ -1,6 +1,5 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.FileProviders;
 
 namespace Random_Realistic_Flight;
 
@@ -17,24 +16,25 @@ public static class StartupExtensions
     public static void ConfigurePathBase(this WebApplication app)
     {
         var pathBase = Environment.GetEnvironmentVariable("ASPNETCORE_PATHBASE");
-        if (pathBase is null)
-        {
-            return;
-        }
-
-        if (!pathBase.StartsWith("/"))
-        {
-            pathBase = "/" + pathBase;
-        }
-
-        if (pathBase.EndsWith("/"))
-        {
-            pathBase = pathBase[..^1];
-        }
         app.Use((context, next) =>
         {
             context.Request.PathBase = new PathString(pathBase);
             return next(context);
         });
+    }
+
+    public static void ConfigureDataProtection(this WebApplicationBuilder builder)
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            return;
+        }
+        var path = Path.Combine(Directory.GetCurrentDirectory(), "DataProtection");
+        builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(path));
+    }
+
+    public static void ConfigureCors(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddCors();
     }
 }
