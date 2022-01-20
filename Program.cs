@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.ConfigureCors();
-builder.Services.AddRazorPages().AddRazorPagesOptions(options => options.Conventions.ConfigureFilter(new IgnoreAntiforgeryTokenAttribute()));
+builder.Services.AddRazorPages();
 builder.ConfigureForwardedHeaders();
 builder.Services.AddSingleton<IFlightService, AeroDataBoxService>();
 builder.Services.AddSingleton<IKeyService, PropertyKeySetter>();
