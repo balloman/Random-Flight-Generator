@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using Random_Realistic_Flight;
 using Random_Realistic_Flight.Services;
@@ -11,8 +12,6 @@ builder.Services.AddRazorPages();
 builder.ConfigureForwardedHeaders();
 builder.Services.AddSingleton<IFlightService, AeroDataBoxService>();
 builder.Services.AddSingleton<IKeyService, PropertyKeySetter>();
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
 
 var app = builder.Build();
 
