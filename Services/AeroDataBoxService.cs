@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Collections.Immutable;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Random_Realistic_Flight.Models;
@@ -13,7 +14,8 @@ public class AeroDataBoxService : IFlightService
     private readonly HttpClient _client;
     private readonly ILogger<AeroDataBoxService> _logger;
     private readonly IKeyService _keyService;
-    private IEnumerable<Departure>? _departures;
+
+    private Call? _lastAircraftCall;
 
     public AeroDataBoxService(ILogger<AeroDataBoxService> logger, IKeyService keyService)
     {
@@ -50,11 +52,7 @@ public class AeroDataBoxService : IFlightService
     /// <inheritdoc />
     public async Task<IEnumerable<Departure>?> GetDeparturesAsync(string airportCode, TimeSpan timeBack)
     {
-        if (_departures != null)
-        {
-            return _departures;
-        }
-
+        _logger.LogInformation("Getting departures from {AirportCode} at {TimeBack} time back", airportCode, timeBack);
         var localTime = await GetLocalTimeAsync(airportCode);
         var startTimeString = (localTime - timeBack).ToString("yyyy-MM-ddTHH:mm");
         var endTimeString = localTime.ToString("yyyy-MM-ddTHH:mm");
@@ -62,29 +60,30 @@ public class AeroDataBoxService : IFlightService
             $"flights/airports/icao/{airportCode}/{startTimeString}/{endTimeString}?withLeg=true&direction=Departure&withCancelled=false&withCargo=true&withPrivate=false&withLocation=false";
         var response = await _client.SendAsync(CraftRequest(requestUri));
         response.EnsureSuccessStatusCode();
-        var responseString = await response.Content.ReadAsStringAsync();
         var jsonArray = (await response.Content.ReadFromJsonAsync<JsonObject>())?["departures"]?.AsArray();
-        _departures = jsonArray.Deserialize<Departure[]>(new JsonSerializerOptions
+        var departures = jsonArray.Deserialize<Departure[]>(new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
-        return _departures;
+        return departures;
     }
 
     /// <inheritdoc />
     public async Task<IEnumerable<string>> GetAircraftByAirportAsync(string airportCode, TimeSpan timeBack)
     {
-        if (_departures == null)
+        // Go ahead and cache the last call to this method.
+        if (_lastAircraftCall != null && _lastAircraftCall.AirportCode == airportCode &&
+            _lastAircraftCall.TimeBack == timeBack)
         {
-            await GetDeparturesAsync(airportCode, timeBack);
+            return _lastAircraftCall.Aircraft;
         }
-
-        if (_departures == null)
+        var departures = await GetDeparturesAsync(airportCode, timeBack);
+        if (departures == null)
         {
-            throw new Exception("Error getting aircraft");
+            return ImmutableArray<string>.Empty;
         }
         var aircraft = new Dictionary<string, int>();
-        foreach (var departure in _departures)
+        foreach (var departure in departures)
         {
             var aircraftModel = departure.Aircraft?.Model;
             if (aircraftModel == null)
@@ -101,6 +100,12 @@ public class AeroDataBoxService : IFlightService
             }
         }
 
-        return aircraft.OrderBy(pair => pair.Value).Reverse().Select(pair => $"{pair.Key}: {pair.Value} Flight(s)");
+        var aircraftList = aircraft.OrderBy(pair => pair.Value).Reverse()
+            .Select(pair => $"{pair.Key}: {pair.Value} Flight(s)");
+        var aircraftByAirportAsync = aircraftList as string[] ?? aircraftList.ToArray();
+        _lastAircraftCall = new Call(airportCode, timeBack, aircraftByAirportAsync);
+        return aircraftByAirportAsync;
     }
+    
+    private record Call(string AirportCode, TimeSpan TimeBack, IEnumerable<string> Aircraft);
 }

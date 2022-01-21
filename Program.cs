@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Mvc;
 using Random_Realistic_Flight;
 using Random_Realistic_Flight.Services;
 using Random_Realistic_Flight.Services.Interfaces;

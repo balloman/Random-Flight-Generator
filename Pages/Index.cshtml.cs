@@ -14,7 +14,7 @@ public class IndexModel : PageModel
     private readonly ILogger<IndexModel> _logger;
     private readonly IFlightService _flightService;
     private readonly IKeyService _keyService;
-    private readonly string[] _timeSpans = { "12 Hours", "1 Day", "1 Week" };
+    private readonly string[] _timeSpans = { "1 Hour", "6 Hours", "12 Hours" };
     private readonly Random _random = new();
 
     [BindProperty] public string Airport { get; set; }
@@ -28,10 +28,10 @@ public class IndexModel : PageModel
             var timeSpanIdx = _timeSpans.ToList().IndexOf(SelectedTimeSpanItem);
             var selectedTimeSpan = timeSpanIdx switch
             {
-                0 => TimeSpan.FromHours(12),
-                1 => TimeSpan.FromDays(1),
-                2 => TimeSpan.FromDays(7),
-                _ => TimeSpan.FromDays(1)
+                0 => TimeSpan.FromHours(1),
+                1 => TimeSpan.FromHours(6),
+                2 => TimeSpan.FromHours(12),
+                _ => TimeSpan.FromHours(12)
             };
             return selectedTimeSpan;
         }
