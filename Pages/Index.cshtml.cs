@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Collections.Immutable;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Random_Realistic_Flight.Models;
+using Random_Realistic_Flight.Extensions;
 using Random_Realistic_Flight.Services.Interfaces;
 // ReSharper disable UnassignedGetOnlyAutoProperty
 // ReSharper disable PropertyCanBeMadeInitOnly.Global
@@ -11,6 +12,8 @@ namespace Random_Realistic_Flight.Pages;
 
 public class IndexModel : PageModel
 {
+    private const string AIRCRAFTS_KEY = "ac";
+    
     private readonly ILogger<IndexModel> _logger;
     private readonly IFlightService _flightService;
     private readonly IKeyService _keyService;
@@ -38,8 +41,7 @@ public class IndexModel : PageModel
     }
 
     public SelectList AircraftList { get; set; } = new(Array.Empty<string>());
-    [BindProperty] public string? SelectedAircraftItem { get; set; }
-    public string OutputText { get; set; } = "";
+    [BindProperty] public string SelectedAircraftItem { get; set; } = "";
     [BindProperty] public string Key { get; set; } = "";
 
     public IndexModel(ILogger<IndexModel> logger, IFlightService flightService, IKeyService keyService)
@@ -59,34 +61,43 @@ public class IndexModel : PageModel
             _keyService.Key = Key;
         } else
         {
-            OutputText = "Please enter a key.";
+            ViewData["Message"] = "Please enter a key";
             return Page();
         }
         var aircraft = await _flightService.GetAircraftByAirportAsync(Airport, SelectedTimeSpan);
-        AircraftList = new SelectList(aircraft);
+        TempData.Set(AIRCRAFTS_KEY, aircraft);
+        PopulateSelectList();
         return Page();
     }
 
-    public async Task<IActionResult> OnPostGetRandomFlight()
+    public void OnPostGetRandomFlight()
     {
-        var flights = await _flightService.GetDeparturesAsync(Airport, SelectedTimeSpan);
-        var flightsArray = flights as Departure[] ?? flights.ToArray();
-        if (flightsArray.Length == 0)
+        PopulateSelectList();
+        var aircraft = TempData.Get<IImmutableSet<IFlightService.AircraftStats>>(AIRCRAFTS_KEY);
+        if (aircraft == null)
         {
-            OutputText = "No flights found";
-            return Page();
+            return;
+        }
+        _logger.LogDebug("Getting a random flight for {Aircraft}", SelectedAircraftItem);
+        var aircraftFlights = aircraft
+            .First(stats => SelectedAircraftItem.Contains(stats.ModelName)).Departures;
+        var randomIndex = _random.Next(0, aircraftFlights.Count);
+        var randomFlight = aircraftFlights[randomIndex];
+        ViewData["Message"] = $"Flight {randomFlight.Number} to {randomFlight.ArrivalAirport?.Icao}, " +
+                     $"Departing at {randomFlight.DepartureStats?.ScheduledTimeUtc}";
+    }
+
+    private void PopulateSelectList()
+    {
+        _logger.LogDebug("Populating select list");
+        var aircraft = TempData.Get<IImmutableSet<IFlightService.AircraftStats>>(AIRCRAFTS_KEY);
+        if (aircraft == null)
+        {
+            return;
         }
 
-        flightsArray = flightsArray.Where(departure => !string.IsNullOrWhiteSpace(departure.Aircraft?.Model) && !string.IsNullOrWhiteSpace(SelectedAircraftItem) && SelectedAircraftItem.Contains(departure.Aircraft?.Model)).ToArray();
-        if (flightsArray.Length == 0)
-        {
-            OutputText = "No flights found";
-            return Page();
-        }
-        var randomIndex = _random.Next(0, flightsArray.Length);
-        var randomFlight = flightsArray[randomIndex];
-        OutputText = $"Flight {randomFlight.Number} to {randomFlight.ArrivalAirport?.Icao}\n" +
-                     $"Departing at {randomFlight.DepartureStats.ScheduledTimeUtc}";
-        return Page();
+        var aircraftStringList = aircraft.OrderBy(stats => -stats.Departures.Count).Select(
+            stats => $"{stats.ModelName} - {stats.Departures.Count} Flights").ToImmutableList();
+        AircraftList = new SelectList(aircraftStringList);
     }
 }

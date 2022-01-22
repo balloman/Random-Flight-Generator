@@ -3,6 +3,7 @@
 
 namespace Random_Realistic_Flight.Models;
 
+// ReSharper disable once ClassNeverInstantiated.Global
 public record Aircraft
 {
     public string? Registration { get; set; }

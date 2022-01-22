@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Random_Realistic_Flight.Models;
@@ -14,8 +13,6 @@ public class AeroDataBoxService : IFlightService
     private readonly HttpClient _client;
     private readonly ILogger<AeroDataBoxService> _logger;
     private readonly IKeyService _keyService;
-
-    private Call? _lastAircraftCall;
 
     public AeroDataBoxService(ILogger<AeroDataBoxService> logger, IKeyService keyService)
     {
@@ -69,43 +66,23 @@ public class AeroDataBoxService : IFlightService
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<string>> GetAircraftByAirportAsync(string airportCode, TimeSpan timeBack)
+    public async Task<IImmutableSet<IFlightService.AircraftStats>> GetAircraftByAirportAsync(string airportCode, TimeSpan timeBack)
     {
-        // Go ahead and cache the last call to this method.
-        if (_lastAircraftCall != null && _lastAircraftCall.AirportCode == airportCode &&
-            _lastAircraftCall.TimeBack == timeBack)
-        {
-            return _lastAircraftCall.Aircraft;
-        }
         var departures = await GetDeparturesAsync(airportCode, timeBack);
         if (departures == null)
         {
-            return ImmutableArray<string>.Empty;
+            return ImmutableHashSet<IFlightService.AircraftStats>.Empty;
         }
-        var aircraft = new Dictionary<string, int>();
-        foreach (var departure in departures)
+
+        var departuresArray = departures as Departure[] ?? departures.ToArray();
+        var aircraftModels = departuresArray.Select(d => d.Aircraft?.Model).Distinct();
+        var statsList = new HashSet<IFlightService.AircraftStats>();
+        foreach (var model in aircraftModels)
         {
-            var aircraftModel = departure.Aircraft?.Model;
-            if (aircraftModel == null)
-            {
-                continue;
-            }
-
-            if (aircraft.ContainsKey(aircraftModel))
-            {
-                aircraft[aircraftModel]++;
-            }else
-            {
-                aircraft.Add(aircraftModel, 1);
-            }
+            if (model == null) continue;
+            statsList.Add(new IFlightService.AircraftStats(model, 
+                departuresArray.Where(d => d.Aircraft?.Model == model).ToImmutableArray()));
         }
-
-        var aircraftList = aircraft.OrderBy(pair => pair.Value).Reverse()
-            .Select(pair => $"{pair.Key}: {pair.Value} Flight(s)");
-        var aircraftByAirportAsync = aircraftList as string[] ?? aircraftList.ToArray();
-        _lastAircraftCall = new Call(airportCode, timeBack, aircraftByAirportAsync);
-        return aircraftByAirportAsync;
+        return statsList.ToImmutableHashSet();
     }
-    
-    private record Call(string AirportCode, TimeSpan TimeBack, IEnumerable<string> Aircraft);
 }

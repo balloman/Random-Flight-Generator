@@ -6,10 +6,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.ConfigureCors();
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages().AddSessionStateTempDataProvider();
 builder.ConfigureForwardedHeaders();
 builder.Services.AddSingleton<IFlightService, AeroDataBoxService>();
 builder.Services.AddSingleton<IKeyService, PropertyKeySetter>();
+builder.Services.AddSession();
 
 var app = builder.Build();
 
@@ -23,6 +24,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
+app.UseSession();
 
 app.UseRouting();
 
