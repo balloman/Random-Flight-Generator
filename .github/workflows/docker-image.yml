@@ -24,6 +24,10 @@ jobs:
     - name: Echo variable
       run: echo ${{ env.TIME }}
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag balloman/random-flight-generator:${{ env.TIME }}
+      run: |
+        docker build . --file Dockerfile --tag balloman/random-flight-generator:${{ env.TIME }}
+        docker image tag balloman/random-flight-generator:${{ env.TIME }} balloman/random-flight-generator:latest
     - name: Push the Docker image
-      run: docker push balloman/random-flight-generator:${{ env.TIME }}
+      run: | 
+        docker push balloman/random-flight-generator:${{ env.TIME }}
+        docker push balloman/random-flight-generator:latest 
