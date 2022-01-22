@@ -6,6 +6,7 @@
 
 <div class="text-center">
     <h1 class="display-4">Welcome to the Random Flight Generator</h1>
+    <h3>Sign up for an API Key to AeroDataBox <a href="https://rapidapi.com/aerodatabox/api/aerodatabox/">here</a></h3>
     
     
 </div>
@@ -31,6 +32,13 @@
         </div>
         <button type="submit" class="btn btn-primary" asp-page-handler="GetRandomFlight">Get Random Flight!</button>
     </form>
-    <textarea asp-for="OutputText"></textarea>
+    @if (ViewData["Message"] != null)
+    {
+        <script type="text/javascript">
+            window.onload = function() {
+                alert("@ViewData["Message"]");
+            };
+    </script>
+    }
 </div>
 </body>
