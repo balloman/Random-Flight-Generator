@@ -1,7 +1,8 @@
 ﻿using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Random_Realistic_Flight.Models;
+using Random_Realistic_Flight.Models.AeroDataBox;
+using Random_Realistic_Flight.Models.Interfaces;
 using Random_Realistic_Flight.Services.Interfaces;
 
 namespace Random_Realistic_Flight.Services;
@@ -9,16 +10,39 @@ namespace Random_Realistic_Flight.Services;
 public class AeroDataBoxService : IFlightService
 {
     private const string BASE_ADDRESS = "https://aerodatabox.p.rapidapi.com/";
-    
+
     private readonly HttpClient _client;
-    private readonly ILogger<AeroDataBoxService> _logger;
     private readonly IKeyService _keyService;
+    private readonly ILogger<AeroDataBoxService> _logger;
 
     public AeroDataBoxService(ILogger<AeroDataBoxService> logger, IKeyService keyService)
     {
         _client = new HttpClient();
         _logger = logger;
         _keyService = keyService;
+    }
+
+    /// <inheritdoc />
+    public async Task<IImmutableSet<IFlightService.AircraftStats>> GetAircraftByAirportAsync(
+        string airportCode, TimeSpan timeBack)
+    {
+        var departures = await GetDeparturesAsync(airportCode, timeBack);
+        if (departures == null)
+        {
+            return ImmutableHashSet<IFlightService.AircraftStats>.Empty;
+        }
+
+        var departuresArray = departures as Departure[] ?? departures.ToArray();
+        var aircraftModels = departuresArray.Select(d => d.Aircraft?.Model).Distinct();
+        var statsList = new HashSet<IFlightService.AircraftStats>();
+        foreach (var model in aircraftModels)
+        {
+            if (model == null) continue;
+            statsList.Add(new IFlightService.AircraftStats(model,
+                departuresArray.Where(d => d.Aircraft?.Model == model).ToImmutableArray()));
+        }
+
+        return statsList.ToImmutableHashSet();
     }
 
     private HttpRequestMessage CraftRequest(string requestUri)
@@ -46,8 +70,7 @@ public class AeroDataBoxService : IFlightService
         return dateTime;
     }
 
-    /// <inheritdoc />
-    public async Task<IEnumerable<Departure>?> GetDeparturesAsync(string airportCode, TimeSpan timeBack)
+    private async Task<IEnumerable<IDeparture>?> GetDeparturesAsync(string airportCode, TimeSpan timeBack)
     {
         _logger.LogInformation("Getting departures from {AirportCode} at {TimeBack} time back", airportCode, timeBack);
         var localTime = await GetLocalTimeAsync(airportCode);
@@ -62,27 +85,15 @@ public class AeroDataBoxService : IFlightService
         {
             PropertyNameCaseInsensitive = true
         });
+        if (departures == null) return null;
+        departures = departures.Select(d =>
+        {
+            d.Origin = new Departure.Airport
+            {
+                Iata = airportCode
+            };
+            return d;
+        }).ToArray();
         return departures;
-    }
-
-    /// <inheritdoc />
-    public async Task<IImmutableSet<IFlightService.AircraftStats>> GetAircraftByAirportAsync(string airportCode, TimeSpan timeBack)
-    {
-        var departures = await GetDeparturesAsync(airportCode, timeBack);
-        if (departures == null)
-        {
-            return ImmutableHashSet<IFlightService.AircraftStats>.Empty;
-        }
-
-        var departuresArray = departures as Departure[] ?? departures.ToArray();
-        var aircraftModels = departuresArray.Select(d => d.Aircraft?.Model).Distinct();
-        var statsList = new HashSet<IFlightService.AircraftStats>();
-        foreach (var model in aircraftModels)
-        {
-            if (model == null) continue;
-            statsList.Add(new IFlightService.AircraftStats(model, 
-                departuresArray.Where(d => d.Aircraft?.Model == model).ToImmutableArray()));
-        }
-        return statsList.ToImmutableHashSet();
     }
 }

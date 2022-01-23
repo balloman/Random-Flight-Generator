@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace Random_Realistic_Flight.Models;
+namespace Random_Realistic_Flight.Models.AeroDataBox;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public record DepartureStats
