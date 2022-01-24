@@ -88,20 +88,23 @@ public class IndexModel : PageModel
         var randomIndex = _random.Next(0, aircraftFlights.Count);
         var randomFlight = aircraftFlights[randomIndex];
         ViewData["Message"] = $"Flight {randomFlight.FlightNumber} to {randomFlight.Destination.Icao}, " +
-            $"Departing at {randomFlight.DepartureTimeUtc.ToString(CultureInfo.CurrentCulture)}";
+            $"Departing at {randomFlight.DepartureTimeUtc.ToUniversalTime().ToString(CultureInfo.CurrentCulture)} UTC";
     }
 
     private void PopulateSelectList()
     {
         _logger.LogDebug("Populating select list");
-        var aircraft = TempData.Get<IImmutableSet<IFlightService.AircraftStats>>(AIRCRAFTS_KEY);
+        var aircraft = TempData.Get<ImmutableHashSet<IFlightService.AircraftStats>>(AIRCRAFTS_KEY);
         if (aircraft == null)
         {
             return;
         }
 
-        var aircraftStringList = aircraft.OrderBy(stats => -stats.Departures.Count).Select(
-            stats => $"{stats.ModelName} - {stats.Departures.Count} Flights").ToImmutableList();
+        var aircraftStringList = aircraft
+            .OrderByDescending(stats => stats.Departures.Count)
+            .ThenBy(stats => stats.ModelName)
+            .Select(stats => $"{stats.ModelName} - {stats.Departures.Count} Flights")
+            .ToImmutableList();
         AircraftList = new SelectList(aircraftStringList);
     }
 }
