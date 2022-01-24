@@ -5,5 +5,5 @@ namespace Random_Realistic_Flight.Services;
 public class PropertyKeySetter : IKeyService
 {
     /// <inheritdoc />
-    public string Key { get; set; }
+    public string Key { get; set; } = "";
 }

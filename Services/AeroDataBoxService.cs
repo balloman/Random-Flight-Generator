@@ -1,7 +1,8 @@
 ﻿using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Random_Realistic_Flight.Models;
+using Random_Realistic_Flight.Models.AeroDataBox;
+using Random_Realistic_Flight.Models.Dtos;
 using Random_Realistic_Flight.Services.Interfaces;
 
 namespace Random_Realistic_Flight.Services;
@@ -9,16 +10,34 @@ namespace Random_Realistic_Flight.Services;
 public class AeroDataBoxService : IFlightService
 {
     private const string BASE_ADDRESS = "https://aerodatabox.p.rapidapi.com/";
-    
+
     private readonly HttpClient _client;
-    private readonly ILogger<AeroDataBoxService> _logger;
     private readonly IKeyService _keyService;
+    private readonly ILogger<AeroDataBoxService> _logger;
 
     public AeroDataBoxService(ILogger<AeroDataBoxService> logger, IKeyService keyService)
     {
         _client = new HttpClient();
         _logger = logger;
         _keyService = keyService;
+    }
+
+    /// <inheritdoc />
+    public async Task<IImmutableList<IFlightService.AircraftStats>> GetAircraftByAirportAsync(
+        string airportCode, TimeSpan timeBack)
+    {
+        var departures = await GetDeparturesAsync(airportCode, timeBack);
+        if (departures == null)
+        {
+            return ImmutableArray<IFlightService.AircraftStats>.Empty;
+        }
+
+        var modelNames = departures.Select(d => d.Aircraft.Model).Distinct();
+        var statsList = modelNames.Select(name => new IFlightService.AircraftStats(
+            name,
+            departures.Where(d => d.Aircraft.Model == name).ToImmutableList()));
+
+        return statsList.ToImmutableList();
     }
 
     private HttpRequestMessage CraftRequest(string requestUri)
@@ -46,13 +65,13 @@ public class AeroDataBoxService : IFlightService
         return dateTime;
     }
 
-    /// <inheritdoc />
-    public async Task<IEnumerable<Departure>?> GetDeparturesAsync(string airportCode, TimeSpan timeBack)
+    private async Task<IImmutableList<DepartureDto>?> GetDeparturesAsync(string airportCode, TimeSpan timeBack)
     {
         _logger.LogInformation("Getting departures from {AirportCode} at {TimeBack} time back", airportCode, timeBack);
         var localTime = await GetLocalTimeAsync(airportCode);
         var startTimeString = (localTime - timeBack).ToString("yyyy-MM-ddTHH:mm");
         var endTimeString = localTime.ToString("yyyy-MM-ddTHH:mm");
+        var departureAirport = new AirportDto(airportCode);
         var requestUri =
             $"flights/airports/icao/{airportCode}/{startTimeString}/{endTimeString}?withLeg=true&direction=Departure&withCancelled=false&withCargo=true&withPrivate=false&withLocation=false";
         var response = await _client.SendAsync(CraftRequest(requestUri));
@@ -62,27 +81,15 @@ public class AeroDataBoxService : IFlightService
         {
             PropertyNameCaseInsensitive = true
         });
-        return departures;
-    }
-
-    /// <inheritdoc />
-    public async Task<IImmutableSet<IFlightService.AircraftStats>> GetAircraftByAirportAsync(string airportCode, TimeSpan timeBack)
-    {
-        var departures = await GetDeparturesAsync(airportCode, timeBack);
-        if (departures == null)
+        return departures?.Select(d =>
         {
-            return ImmutableHashSet<IFlightService.AircraftStats>.Empty;
-        }
-
-        var departuresArray = departures as Departure[] ?? departures.ToArray();
-        var aircraftModels = departuresArray.Select(d => d.Aircraft?.Model).Distinct();
-        var statsList = new HashSet<IFlightService.AircraftStats>();
-        foreach (var model in aircraftModels)
-        {
-            if (model == null) continue;
-            statsList.Add(new IFlightService.AircraftStats(model, 
-                departuresArray.Where(d => d.Aircraft?.Model == model).ToImmutableArray()));
-        }
-        return statsList.ToImmutableHashSet();
+            var aircraftDto = new AircraftDto(d.Aircraft.Model);
+            var departureDto = new DepartureDto(aircraftDto,
+                d.FlightNumber,
+                departureAirport,
+                new AirportDto(d.ArrivalAirport.Icao),
+                DateTime.Parse(d.DepartureStats.ScheduledTimeUtc!));
+            return departureDto;
+        }).ToImmutableArray();
     }
 }
